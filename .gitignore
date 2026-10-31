@@ -1,0 +1,12 @@
+# data, weights, caches, envs — never committed
+data/
+models/
+out/
+.venv/
+.venv-vllm/
+*.jsonl
+__pycache__/
+*.pyc
+*.log
+.stage.pgid
+.pipeline.lock

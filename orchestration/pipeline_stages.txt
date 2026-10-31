@@ -1,0 +1,22 @@
+# name | done-check | command (run from src/, PATH has the vLLM venv)
+ocr          | [ $(lines out/ocr_train_q38.jsonl) -ge 1500 ] && [ $(lines out/ocr_test_q38.jsonl) -ge 3498 ] | python transcribe_workings.py --split train,test
+diag_train   | [ $(lines out/diag_train_q38.jsonl) -ge 1500 ] | python diagnose_misconceptions.py --split train --tag q38
+diag_test    | [ $(lines out/diag_test_q38.jsonl) -ge 3498 ] | python diagnose_misconceptions.py --split test --tag q38
+# experiments on the same 300 train rows
+# stopped 2026-10-30 (128 rows: finished rows 0.721 vs 0.605 plain, 61/128 hit the token cap)
+# exp_think    | [ $(lines out/diag_train_q38t.jsonl) -ge 300 ] | python diagnose_misconceptions.py --split train --tag q38t --thinking --limit 300
+exp_img      | [ $(lines out/diag_train_q38i.jsonl) -ge 300 ] | python diagnose_misconceptions.py --split train --tag q38i --image --limit 300
+# exp_think_img| [ $(lines out/diag_train_q38ti.jsonl) -ge 300 ] | python diagnose_misconceptions.py --split train --tag q38ti --thinking --image --limit 300
+# budget-forced reasoning (2048 tokens) on the first 128 train rows, 27B dense
+exp_b27      | [ $(lines out/diag_train_q38b2k.jsonl) -ge 128 ] | python diagnose_misconceptions.py --split train --tag q38b2k --think-budget 2048 --limit 128
+# budget-forced reasoning on the MoE model (3B active), same 128 rows: speed/quality vs 27B
+exp_ba3b     | [ $(lines out/diag_train_a3b2k.jsonl) -ge 128 ] | python diagnose_misconceptions.py --split train --tag a3b2k --model ../models/Qwen3.6-35B-A3B-FP8 --think-budget 2048 --limit 128
+# fine-tuned 9B classifier, 5-fold OOF (needs the 9B weights; waits for the download marker)
+# ft9b paused 2026-10-30: fold0 MAP@3 0.547 (weak); GPU given to reasoning run
+# ft9b         | python -c "import numpy as n,sys; a=n.load('$R/out/ft_ft9b_oof.npy'); sys.exit(0 if (a.sum(1)>0).all() else 1)" | [ -f ../models/Qwen3.5-9B/config.json ] && [ ! -f ../log_dl_9b.busy ] && ../.venv/bin/python finetune.py --model ../models/Qwen3.5-9B --tag ft9b --folds 5
+# full run: photo + reasoning capped at 2048 tokens, 27B. the remote worker runs test rows 0-2399 (tag q38ti2k_a);
+# this machine runs test rows 2400-3497 and 600 train rows (for calibration/stacking)
+full_test_b  | [ $(lines out/diag_test_q38ti2k_b.jsonl) -ge 1098 ] | python diagnose_misconceptions.py --split test --tag q38ti2k_b --image --think-budget 2048 --offset 2400 --max-seqs 128
+full_train   | [ $(lines out/diag_train_q38ti2k.jsonl) -ge 1500 ] | python diagnose_misconceptions.py --split train --tag q38ti2k --image --think-budget 2048 --limit 1500 --max-seqs 128
+# the remote worker went offline 2026-10-30 ~15:50; failover: run test rows 0-2399 locally (same output file finalize uses)
+full_test_a  | [ $(lines out/diag_test_q38ti2k_a.jsonl) -ge 2400 ] | python diagnose_misconceptions.py --split test --tag q38ti2k_a --image --think-budget 2048 --offset 0 --limit 2400 --max-seqs 128

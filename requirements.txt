@@ -1,0 +1,12 @@
+# general env (.venv)
+pandas
+numpy
+scikit-learn
+scipy
+lightgbm
+pillow
+paramiko
+setproctitle
+kaggle
+# serving env (.venv-vllm), installed separately with vLLM on PATH
+# vllm>=0.32
