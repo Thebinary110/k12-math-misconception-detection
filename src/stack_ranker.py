@@ -49,6 +49,10 @@ def sources(train, test, cls, args):
         signals_tr[f"ac_{tag}"], signals_te[f"ac_{tag}"] = pc_tr, pc_te
     for tag in args.ft:
         src[f"ft_{tag}"] = (np.load(ROOT / "out" / f"ft_{tag}_oof.npy"), np.load(ROOT / "out" / f"ft_{tag}_test.npy"))
+    for rt in getattr(args, 'retr', []) or []:
+        sfx = f'_{rt}' if rt else ''
+        name = f'retr{sfx}' if rt else 'retr'
+        src[name] = (np.load(ROOT / 'out' / f'retr{sfx}_oof.npy'), np.load(ROOT / 'out' / f'retr{sfx}_test.npy'))
     return src, signals_tr, signals_te
 
 
@@ -94,6 +98,7 @@ def top3_from(frame, scores, n_rows, cls):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--llm", nargs="*", default=["q38"])
+    ap.add_argument("--retr", nargs="*", default=[], help="retrieval source tags; e.g. --retr '' base (loads out/retr[_<tag>]_{oof,test}.npy)")
     ap.add_argument("--ft", nargs="*", default=[])
     ap.add_argument("--name", default=None)
     args = ap.parse_args()

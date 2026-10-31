@@ -9,7 +9,7 @@ so every stage here is a local vLLM / scikit‑learn / LightGBM component.
 
 ## Result
 
-Best public leaderboard score so far: **0.722** (reasoning stack), up from a 0.535 statistical baseline.
+Best public leaderboard score so far: **0.726** (reasoning stack + semantic retrieval), up from a 0.535 statistical baseline.
 
 | # | Submission | What it is | Public LB |
 |---|------------|------------|-----------|
@@ -18,7 +18,8 @@ Best public leaderboard score so far: **0.722** (reasoning stack), up from a 0.5
 | 3 | `03_partial_reasoning_hybrid` | Blend base with 2048‑token reasoning on part of the test set | 0.661 |
 | 4 | `04_full_reasoning_hybrid` | Raw 2048‑token reasoning top‑3 on the full test set | 0.714 |
 | 5 | `05_reasoning_plus_zeroshot_blend` | Weighted blend of reasoning + zero‑shot + prior | 0.717 |
-| 6 | `06_reasoning_stack` **(best)** | LGBMRanker stack over prior + TF‑IDF + zero‑shot + reasoning | **0.722** |
+| 6 | `06_reasoning_stack` | LGBMRanker stack over prior + TF‑IDF + zero‑shot + reasoning | 0.722 |
+| 7 | `07_reasoning_stack_plus_retrieval` **(best)** | Stack above + a semantic kNN retrieval source | **0.726** |
 
 (Out‑of‑fold cross‑validation tracks the leaderboard closely throughout, which is what made the climb steerable.)
 
@@ -52,6 +53,14 @@ the transcriptions. Individually modest, but valuable as calibrated, full‑cove
 - **Blend**: grid‑searched weighted average of the per‑class probabilities from each source.
 - **Stack**: an `LGBMRanker` learns, from 5‑fold out‑of‑fold predictions, how to combine the prior, TF‑IDF,
   zero‑shot, and reasoning signals into a single ranking. This is the best submission.
+
+### 4b. Semantic retrieval — `src/semantic_retrieval.py`
+A cheap, no-LLM source inspired by how the strongest misconception solutions work: embed each
+`(topic + question + transcription)` with a small multilingual sentence model (`multilingual-e5-small`, chosen for the
+Indonesian text), find the nearest labelled training workings (out-of-fold on the shared folds), and borrow their
+root-code distribution as a probability vector. Standalone it is modest (OOF ≈ 0.52), but as a *diverse* stack source
+it lifts the ensemble — stack OOF 0.7168 → 0.7238, public LB 0.722 → **0.726** — for the cost of one embedding pass.
+Embeddings are cached so re-tuning k/temperature needs no GPU. `stack_ranker.py --retr` adds it to the stack.
 
 ### 5. Transcription quality tools — `src/evaluate_transcription.py`, `src/clean_transcription.py`
 Only the training split ships with gold human transcripts, which lets us score any OCR model **objectively** rather
